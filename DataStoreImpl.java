@@ -6,6 +6,8 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 
+import javax.sound.sampled.*;    
+
 /**
  * An implementation of the data store.
  * <p>
@@ -26,7 +28,62 @@ public class DataStoreImpl implements DataStore {
     @Override
     public void generateAudioDescriptor(final String pathToFile) {
         // TODO: pei-lun
-        throw new UnsupportedOperationException("Method not yet implemented");
+        // read the file
+        File wavFile = new File( pathToFile );
+
+        try 
+        {
+            AudioInputStream audioInputStream = AudioSystem.getAudioInputStream( wavFile );
+            AudioFormat audioFormat = audioInputStream.getFormat();
+
+            // get audio information
+            int bytesPerFrame = audioFormat.getFrameSize();
+            int frameLength = (int) audioInputStream.getFrameLength();
+
+            // set windows size to 1024
+            int windowSize = 1024;
+            int numBytes = 1024 * bytesPerFrame;
+            byte[] audioBytes = new byte[numBytes];
+            int numBytesRead = 0;
+            int numFramesRead = 0;
+
+            // stores the output audio descriptor
+            float[] intensityDescriptor = new float[ frameLength/windowSize + 1 ];
+
+            int windowNumber = 0;
+            while ( ( numBytesRead = audioInputStream.read( audioBytes ) ) != -1 )
+            {
+                // calculate the number of frames actually read.
+                numFramesRead = numBytesRead / bytesPerFrame;
+
+                // iterate though the window
+                float totalIntensity = 0.f;
+                for ( int i = 0; i < numFramesRead; ++i )
+                {
+                    // convert 2 byte values to one float sample value
+                    float sample = ( (audioBytes[i*2 + 0] & 0xFF) | (audioBytes[i*2 + 1] << 8) ) / 32768.0F;
+
+                    // accumulate the intensity
+                    totalIntensity += Math.abs( sample );
+                }
+
+                // compute the average intensity
+                totalIntensity /= numFramesRead;
+
+                // put the average in the intensity vector
+                intensityDescriptor[windowNumber++] = totalIntensity;
+            }
+
+            for (float desc : intensityDescriptor)
+                System.out.println(desc);
+        }
+        catch (final UnsupportedAudioFileException e)
+        {
+            e.printStackTrace();
+        }
+        catch (final IOException e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
