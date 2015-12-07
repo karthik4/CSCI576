@@ -1,12 +1,9 @@
 package com.csci576.mmdb;
 
-import javax.imageio.ImageIO;
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioInputStream;
 import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.UnsupportedAudioFileException;
-import javax.swing.*;
-import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -31,7 +28,7 @@ public class DataStoreImpl implements DataStore {
      */
     private static final int SEARCH_SPACE = 2;
     @Override
-    public int[] generateAudioDescriptor(final String pathToFile) throws UnsupportedAudioFileException, IOException {
+    public int[] generateAudioDescriptor(final String pathToFile) throws IOException, UnsupportedAudioFileException {
         // TODO: pei-lun
         // read the file
         File wavFile = new File( pathToFile );
@@ -88,7 +85,8 @@ public class DataStoreImpl implements DataStore {
     }
 
     @Override
-    public int[] generateMotionDescriptor(final String pathToFile) throws FileNotFoundException {
+    public int[] generateMotionDescriptor(final String pathToFile) throws
+            FileNotFoundException {
         // Here lies a O(n**6) algorithm.
         final File videoFile = new File(pathToFile);
 
@@ -128,9 +126,6 @@ public class DataStoreImpl implements DataStore {
 
                 descriptor_x[j-1] += Math.abs(motionVector[0]);
                 descriptor_y[j-1] += Math.abs(motionVector[1]);
-//                System.out.println("Motion vector for frame " + (j-1) + " & " +
-//                        j + " block " + i + ": " +
-//                        motionVector[0] + ", " + motionVector[1]);
             }
 
             massiveDescriptor[j - 1] = descriptor_x[j - 1] + descriptor_y[j - 1];
@@ -141,32 +136,15 @@ public class DataStoreImpl implements DataStore {
         }
 
         double qInterval = range / 255.00;
-        BufferedImage image = new BufferedImage(150, 50, BufferedImage.TYPE_INT_RGB);
+        int[] quantizedMotionDescriptor = new int[150];
 
-        for (int i = 0; i < 50; ++i) {
-            for (int j = 0; j < 150; ++j) {
-                if (j == 0) {
-                    image.setRGB(j, i, 0xff000000);
-                } else {
-                    int qVal = (int) Math.round(massiveDescriptor[j-1] /
-                            qInterval);
-                    int pixel = 0xff000000 | ((qVal & 0xff) << 16) | ((qVal &
-                            0xff) << 8) | ((qVal & 0xff));
+        quantizedMotionDescriptor[0] = 0;
 
-                    image.setRGB(j, i, pixel);
-                }
-            }
+        for (int i = 1; i < 150; ++i) {
+            quantizedMotionDescriptor[i] = (int) Math.round(massiveDescriptor[i - 1] / qInterval);
         }
 
-        File outFile = new File(pathToFile + "_motion" + ".jpeg");
-
-        try {
-            ImageIO.write(image, "jpeg", outFile);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-        return massiveDescriptor;
+        return quantizedMotionDescriptor;
     }
 
     private int[] getMotionVectorForMacroBlock(final int mbIndex, final int[][]
@@ -215,35 +193,6 @@ public class DataStoreImpl implements DataStore {
         return retVector;
     }
 
-    private void printMacroBlocks(final int[][] frame) {
-
-        for (int i = 0; i < 225; ++i) {
-            System.out.println("Macroblock " + i + ": " + (i % 15) * 16 + ", " +
-                    (i / 15) * 12 + ", " + ((i % 15) * 16 + 15) + ", " + ((i /
-                    15) * 12 + 11));
-        }
-    }
-
-    private void displayFrame(final int[][] frame) {
-        BufferedImage image = new BufferedImage(240, 180, BufferedImage.TYPE_INT_RGB);
-        for (int i = 0; i < 180 && i < frame.length; ++i) {
-            for (int j = 0; j < 240 && j < frame[i].length; ++j) {
-                image.setRGB(j, i, frame[i][j]);
-            }
-        }
-
-        JPanel panel = new JPanel();
-        panel.add(new JLabel(new ImageIcon(image)));
-
-        JFrame jFrame = new JFrame("Displaying frame 1 and 120");
-        jFrame.getContentPane().add(panel);
-
-        jFrame.pack();
-        jFrame.setVisible(true);
-        jFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-
-    }
-
     private int[][] getFrame(final int frameNumber, final byte[] bytes) {
         int index = 3 * 180 * 240 * frameNumber;
         int[][] frame = new int[180][240];
@@ -287,7 +236,7 @@ public class DataStoreImpl implements DataStore {
                 offset += numRead;
             }
         }
-        catch (final IOException e) 
+        catch (final IOException e)
         {
             e.printStackTrace();
         }

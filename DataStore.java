@@ -1,7 +1,7 @@
 package com.csci576.mmdb;
 
-import java.io.FileNotFoundException;
 import javax.sound.sampled.UnsupportedAudioFileException;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 
 /**
@@ -16,7 +16,7 @@ public interface DataStore {
      *
      * @param pathToFile path to the audio file for generating descriptor.
      */
-    int[] generateAudioDescriptor(final String pathToFile) throws 
+    int[] generateAudioDescriptor(final String pathToFile) throws
             UnsupportedAudioFileException, IOException;
 
     /**
