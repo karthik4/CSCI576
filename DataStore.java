@@ -14,7 +14,7 @@ public interface DataStore {
      *
      * @param pathToFile path to the audio file for generating descriptor.
      */
-    void generateAudioDescriptor(final String pathToFile);
+    int[] generateAudioDescriptor(final String pathToFile);
 
     /**
      * Generate descriptor based on degree of motion in the video file.
@@ -22,7 +22,8 @@ public interface DataStore {
      *
      * @param pathToFile the video file used for generating descriptor.
      */
-    void generateMotionDescriptor(final String pathToFile) throws FileNotFoundException;
+    int[] generateMotionDescriptor(final String pathToFile) throws
+            FileNotFoundException;
 
     /**
      * Generate descriptor based on the third parameter(which is?).
@@ -30,5 +31,5 @@ public interface DataStore {
      *
      * @param pathToFile the file used to generate descriptor.
      */
-    void generateColorHistogramDescriptor(final String pathToFile);
+    int[] generateColorHistogramDescriptor(final String pathToFile);
 }
