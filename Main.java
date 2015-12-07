@@ -218,4 +218,22 @@ public class Main {
             descriptors[i] = descriptorList.get(i).intValue();
         return descriptors;
     }
+
+    // compute L-2 distance between two descriptors
+    static float computeDestance( int[] descriptor1, int[] descriptor2 )
+    {
+        // assuming the descritors have the same length
+        assert descriptor1.length == descriptor2.length;
+
+        float squaredDistance = 0.f;
+        for ( int i = 0; i < descriptor1.length; ++i )
+        {
+            float diff = (float) (descriptor1[i] - descriptor2[i]);
+            squaredDistance += diff * diff;
+        }
+
+        float distance = (float) Math.sqrt( squaredDistance );
+
+        return distance;
+    }
 }
