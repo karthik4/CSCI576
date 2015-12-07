@@ -7,6 +7,7 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.InputStream;
 
@@ -42,9 +43,33 @@ public class Main {
             displayVideoWithDescriptors(args[0], motionDescriptor,
                     colorHistogramDescriptor, audioDescriptor);
 
+            final String videoNameMotionDescriptorBased =
+                    getBestMatchingVideoBasedOnDescriptor(motionDescriptor, "desc1");
+
+            System.out.println(videoNameMotionDescriptorBased);
+
         } catch ( Exception e ) {
             e.printStackTrace();
         }
+    }
+
+    private static String getBestMatchingVideoBasedOnDescriptor(final int[] descriptor, final String desc1) {
+        File[] files = new File(".").listFiles((dir, name) -> {
+            return name.endsWith(desc1);
+        });
+
+        float closestDelta = Integer.MAX_VALUE;
+        String closestMatchingFile = "";
+        for (File file : files) {
+            float delta = computeDestance(descriptor, loadDescriptorData(file
+                    .getPath()));
+            if (delta < closestDelta) {
+                closestDelta = delta;
+                closestMatchingFile = file.getName();
+            }
+        }
+
+        return closestMatchingFile;
     }
 
     private static void displayVideoWithDescriptors(final String arg, final
@@ -86,30 +111,33 @@ public class Main {
             e.printStackTrace();
         }
 
-        BufferedImage motionDescriptorImage = new BufferedImage(motionDescriptor.length, 50,
+        BufferedImage motionDescriptorImage = new BufferedImage
+                (2 * motionDescriptor.length, 50,
                 BufferedImage.TYPE_INT_RGB);
-        BufferedImage colorHistogramDescriptorImage = new BufferedImage(colorHistogramDescriptor.length,
+        BufferedImage colorHistogramDescriptorImage = new BufferedImage
+                (2 * colorHistogramDescriptor.length,
                 50, BufferedImage.TYPE_INT_RGB);
-        BufferedImage audioDescriptorImage = new BufferedImage(audioDescriptor.length,
+        BufferedImage audioDescriptorImage = new BufferedImage
+                (2 * audioDescriptor.length,
                 50, BufferedImage.TYPE_INT_RGB);
         BufferedImage firstFrame = new BufferedImage(240, 180, BufferedImage.TYPE_INT_RGB);
 
         for (int i = 0; i < 50; ++i) {
-            for (int j = 0; j < motionDescriptor.length; ++j) {
+            for (int j = 0; j < 2 * motionDescriptor.length; ++j) {
                 int motion_pixel = 0xff000000 |
                         ((motionDescriptor[j / 2] & 0xff) << 16) |
                         ((motionDescriptor[j / 2] & 0xff) << 8) |
                         ((motionDescriptor[j / 2] & 0xff));
                 motionDescriptorImage.setRGB(j, i, motion_pixel);
             }
-            for (int j = 0; j < colorHistogramDescriptor.length; ++j) {
+            for (int j = 0; j < 2 * colorHistogramDescriptor.length; ++j) {
                 int color_pixel = 0xff000000 |
                         ((colorHistogramDescriptor[j / 2] & 0xff) << 16) |
                         ((colorHistogramDescriptor[j / 2] & 0xff) << 8) |
                         ((colorHistogramDescriptor[j / 2] & 0xff));
                 colorHistogramDescriptorImage.setRGB(j, i, color_pixel);
             }
-            for (int j = 0; j < audioDescriptor.length; ++j) {
+            for (int j = 0; j < 2 * audioDescriptor.length; ++j) {
                 int audio_pixel = 0xff000000 |
                         ((audioDescriptor[j / 2] & 0xff) << 16) |
                         ((audioDescriptor[j / 2] & 0xff) << 8) |
@@ -130,10 +158,10 @@ public class Main {
         superContainer.setLayout(new BoxLayout(superContainer, BoxLayout.Y_AXIS));
 
         JPanel container = new JPanel();
-        container.setLayout(new BoxLayout(container, BoxLayout.X_AXIS));
+        container.setLayout(new BoxLayout(container, BoxLayout.Y_AXIS));
 
         JPanel panel0 = new JPanel();
-        panel0.setLayout(new BoxLayout(panel0, BoxLayout.Y_AXIS));
+        panel0.setLayout(new BoxLayout(panel0, BoxLayout.X_AXIS));
         panel0.setBorder(new EmptyBorder(10, 10, 10, 10));
         JLabel label = new JLabel(new ImageIcon(firstFrame));
         label.setHorizontalAlignment(SwingConstants.LEFT);
@@ -141,22 +169,25 @@ public class Main {
         panel0.add(new JLabel("Video"));
 
         JPanel panel = new JPanel();
-        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+        panel.setLayout(new BoxLayout(panel, BoxLayout.X_AXIS));
         panel.setBorder(new EmptyBorder(10, 10, 10, 10));
+
+        panel.add(new JLabel("Motion Descriptor"));
         panel.add(new JLabel(new ImageIcon(motionDescriptorImage)));
-        panel.add(new JLabel("Motion Descriptor!"));
 
         JPanel panel1 = new JPanel();
         panel1.setBorder(new EmptyBorder(10, 10, 10, 10));
-        panel1.setLayout(new BoxLayout(panel1, BoxLayout.Y_AXIS));
-        panel1.add(new JLabel(new ImageIcon(colorHistogramDescriptorImage)));
+        panel1.setLayout(new BoxLayout(panel1, BoxLayout.X_AXIS));
+
         panel1.add(new JLabel("Color Descriptor"));
+        panel1.add(new JLabel(new ImageIcon(colorHistogramDescriptorImage)));
 
         JPanel panel2 = new JPanel();
-        panel2.setLayout(new BoxLayout(panel2, BoxLayout.Y_AXIS));
+        panel2.setLayout(new BoxLayout(panel2, BoxLayout.X_AXIS));
         panel2.setBorder(new EmptyBorder(10, 10, 10, 10));
+
+        panel2.add(new JLabel("Audio Descriptor"));
         panel2.add(new JLabel(new ImageIcon(audioDescriptorImage)));
-        panel2.add(new JLabel("Audio Descriptor!"));
 
         superContainer.add(panel0);
         container.add(panel);
@@ -174,7 +205,7 @@ public class Main {
 
     static void writeDesriptorData( int[] descriptor, String filename )
     {
-        try 
+        try
         {
             DataOutputStream os = new DataOutputStream( new FileOutputStream( filename ) );
             for ( int i = 0; i < descriptor.length; ++i )
