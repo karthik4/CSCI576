@@ -1,6 +1,8 @@
 package com.csci576.mmdb;
 
 import java.io.FileNotFoundException;
+import javax.sound.sampled.UnsupportedAudioFileException;
+import java.io.IOException;
 
 /**
  * A simple interface for the data store.
@@ -14,7 +16,8 @@ public interface DataStore {
      *
      * @param pathToFile path to the audio file for generating descriptor.
      */
-    int[] generateAudioDescriptor(final String pathToFile);
+    int[] generateAudioDescriptor(final String pathToFile) throws 
+            UnsupportedAudioFileException, IOException;
 
     /**
      * Generate descriptor based on degree of motion in the video file.
@@ -31,5 +34,6 @@ public interface DataStore {
      *
      * @param pathToFile the file used to generate descriptor.
      */
-    int[] generateColorHistogramDescriptor(final String pathToFile);
+    int[] generateColorHistogramDescriptor(final String pathToFile) throws
+            FileNotFoundException;
 }

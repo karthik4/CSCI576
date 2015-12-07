@@ -31,68 +31,64 @@ public class DataStoreImpl implements DataStore {
      */
     private static final int SEARCH_SPACE = 2;
     @Override
-    public void generateAudioDescriptor(final String pathToFile) {
+    public int[] generateAudioDescriptor(final String pathToFile) throws UnsupportedAudioFileException, IOException {
         // TODO: pei-lun
         // read the file
         File wavFile = new File( pathToFile );
 
-        try
+        AudioInputStream audioInputStream = AudioSystem.getAudioInputStream(wavFile);
+        AudioFormat audioFormat = audioInputStream.getFormat();
+
+        // get audio information
+        int bytesPerFrame = audioFormat.getFrameSize();
+        int frameLength = (int) audioInputStream.getFrameLength();
+
+        // set windows size to 1024
+        int windowSize = 1024;
+        int numBytes = 1024 * bytesPerFrame;
+        byte[] audioBytes = new byte[numBytes];
+        int numBytesRead = 0;
+        int numFramesRead = 0;
+
+        // stores the output audio descriptor
+        float[] intensityDescriptor = new float[ frameLength/windowSize + 1 ];
+
+        int windowNumber = 0;
+        while ( ( numBytesRead = audioInputStream.read( audioBytes ) ) != -1 )
         {
-            AudioInputStream audioInputStream = AudioSystem.getAudioInputStream(wavFile);
-            AudioFormat audioFormat = audioInputStream.getFormat();
+            // calculate the number of frames actually read.
+            numFramesRead = numBytesRead / bytesPerFrame;
 
-            // get audio information
-            int bytesPerFrame = audioFormat.getFrameSize();
-            int frameLength = (int) audioInputStream.getFrameLength();
-
-            // set windows size to 1024
-            int windowSize = 1024;
-            int numBytes = 1024 * bytesPerFrame;
-            byte[] audioBytes = new byte[numBytes];
-            int numBytesRead = 0;
-            int numFramesRead = 0;
-
-            // stores the output audio descriptor
-            float[] intensityDescriptor = new float[ frameLength/windowSize + 1 ];
-
-            int windowNumber = 0;
-            while ( ( numBytesRead = audioInputStream.read( audioBytes ) ) != -1 )
+            // iterate though the window
+            float totalIntensity = 0.f;
+            for ( int i = 0; i < numFramesRead; ++i )
             {
-                // calculate the number of frames actually read.
-                numFramesRead = numBytesRead / bytesPerFrame;
+                // convert 2 byte values to one float sample value
+                float sample = ( (audioBytes[i*2 + 0] & 0xFF) | (audioBytes[i*2 + 1] << 8) ) / 32768.0F;
 
-                // iterate though the window
-                float totalIntensity = 0.f;
-                for ( int i = 0; i < numFramesRead; ++i )
-                {
-                    // convert 2 byte values to one float sample value
-                    float sample = ( (audioBytes[i*2 + 0] & 0xFF) | (audioBytes[i*2 + 1] << 8) ) / 32768.0F;
-
-                    // accumulate the intensity
-                    totalIntensity += Math.abs( sample );
-                }
-
-                // compute the average intensity
-                totalIntensity /= numFramesRead;
-
-                // put the average in the intensity vector
-                intensityDescriptor[windowNumber++] = totalIntensity;
+                // accumulate the intensity
+                totalIntensity += Math.abs( sample );
             }
 
-            for (float desc : intensityDescriptor)
-                System.out.println(desc);
+            // compute the average intensity
+            totalIntensity /= numFramesRead;
+
+            // put the average in the intensity vector
+            intensityDescriptor[windowNumber++] = totalIntensity;
         }
-        catch (final UnsupportedAudioFileException e)
+
+        int[] outputDescriptor = new int[intensityDescriptor.length];
+
+        for ( int i = 0; i < outputDescriptor.length; ++i )
         {
-            e.printStackTrace();
+            outputDescriptor[i] = (int) (intensityDescriptor[i] * 255);
         }
-        catch (final IOException e) {
-            e.printStackTrace();
-        }
+
+        return outputDescriptor;
     }
 
     @Override
-    public void generateMotionDescriptor(final String pathToFile) throws FileNotFoundException {
+    public int[] generateMotionDescriptor(final String pathToFile) throws FileNotFoundException {
         // Here lies a O(n**6) algorithm.
         final File videoFile = new File(pathToFile);
 
@@ -169,6 +165,8 @@ public class DataStoreImpl implements DataStore {
         } catch (IOException e) {
             e.printStackTrace();
         }
+
+        return massiveDescriptor;
     }
 
     private int[] getMotionVectorForMacroBlock(final int mbIndex, final int[][]
@@ -267,77 +265,83 @@ public class DataStoreImpl implements DataStore {
     }
 
     @Override
-    public void generateColorHistogramDescriptor(final String pathToFile) {
+    public int[] generateColorHistogramDescriptor(final String pathToFile) throws FileNotFoundException {
 
         int frameWidth = 240;
         int frameHeight = 180;
         int numFrames = 150;
 
-        try
-        {
-            File rgbFile = new File( pathToFile );
-            InputStream is = new FileInputStream( rgbFile );
+        File rgbFile = new File( pathToFile );
+        if ( !rgbFile.exists() ) {
+            throw new FileNotFoundException("File not found at " + pathToFile);
+        }
+        InputStream is = new FileInputStream( rgbFile );
 
-            long rgbFileLength = rgbFile.length();
-            byte[] rgbBytes = new byte[(int)rgbFileLength];
+        long rgbFileLength = rgbFile.length();
+        byte[] rgbBytes = new byte[(int)rgbFileLength];
 
-            int offset = 0;
-            int numRead = 0;
+        int offset = 0;
+        int numRead = 0;
+        try {
             while (offset < rgbBytes.length && (numRead=is.read(rgbBytes, offset, rgbBytes.length-offset)) >= 0) {
                 offset += numRead;
             }
-
-            int numHueBins = 9;
-            float[] colorHistogramDescriptor = new float[ 30 * numHueBins ];
-
-            float maxh = -1000;
-            float minh = 1000;
-
-            int ind = 0;
-            // get one descriptor for every 5 frames
-            for ( int s = 0; s < 30; ++s )
-            {
-                int totalNumPixels = 0;
-                // accumulate color histogram for 5 frames
-                for ( int f = 0; f < 5; ++f )
-                {
-                    for ( int y = 0; y < frameHeight; ++y )
-                    {
-                        for ( int x = 0; x < frameWidth; ++x )
-                        {
-                            float r = byte2float( rgbBytes[ind] );
-                            float g = byte2float( rgbBytes[ind+frameHeight*frameWidth] );
-                            float b = byte2float( rgbBytes[ind+frameHeight*frameWidth*2] );
-
-                            // transform rgb color space to get hue
-                            float h = rgb2h( r, g, b );
-                            if (maxh < h) maxh = h;
-                            if (minh > h) minh = h;
-
-                            // quantize hue to 0 to 8
-                            h = (float) Math.floor( h / 360 * numHueBins );
-                            if (h == numHueBins) b = 8;
-
-                            int colorIndex = (int) h;
-
-                            colorHistogramDescriptor[ s*9 + colorIndex ]++;
-                            totalNumPixels++;
-
-                            ind++;
-                        }
-                    }
-
-                    ind += frameHeight*frameWidth*2;
-                }
-
-                for ( int c = 0; c < 9; ++c )
-                    colorHistogramDescriptor[s*9+c] /= totalNumPixels;
-            }
         }
-        catch (Exception e)
+        catch (final IOException e) 
         {
             e.printStackTrace();
         }
+
+        int numHueBins = 9;
+        float[] colorHistogramDescriptor = new float[ 30 * numHueBins ];
+
+        int ind = 0;
+        // get one descriptor for every 5 frames
+        for ( int s = 0; s < 30; ++s )
+        {
+            int totalNumPixels = 0;
+            // accumulate color histogram for 5 frames
+            for ( int f = 0; f < 5; ++f )
+            {
+                for ( int y = 0; y < frameHeight; ++y )
+                {
+                    for ( int x = 0; x < frameWidth; ++x )
+                    {
+                        float r = byte2float( rgbBytes[ind] );
+                        float g = byte2float( rgbBytes[ind+frameHeight*frameWidth] );
+                        float b = byte2float( rgbBytes[ind+frameHeight*frameWidth*2] );
+
+                        // transform rgb color space to get hue
+                        float h = rgb2h( r, g, b );
+
+                        // quantize hue to 0 to 8
+                        h = (float) Math.floor( h / 360 * numHueBins );
+                        if (h == numHueBins) b = 8;
+
+                        int colorIndex = (int) h;
+
+                        colorHistogramDescriptor[ s*9 + colorIndex ]++;
+                        totalNumPixels++;
+
+                        ind++;
+                    }
+                }
+
+                ind += frameHeight*frameWidth*2;
+            }
+
+            for ( int c = 0; c < 9; ++c )
+                colorHistogramDescriptor[s*9+c] /= totalNumPixels;
+        }
+
+        int[] outputDescriptor = new int[colorHistogramDescriptor.length];
+
+        for ( int i = 0; i < outputDescriptor.length; ++i )
+        {
+            outputDescriptor[i] = (int) (colorHistogramDescriptor[i] * 255);
+        }
+
+        return outputDescriptor;
     }
 
     static float byte2float( byte b )
