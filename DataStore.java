@@ -1,5 +1,7 @@
 package com.csci576.mmdb;
 
+import java.io.FileNotFoundException;
+
 /**
  * A simple interface for the data store.
  *
@@ -20,18 +22,10 @@ public interface DataStore {
      *
      * @param pathToFile the video file used for generating descriptor.
      */
-    void generateMotionDescriptor(final String pathToFile);
+    void generateMotionDescriptor(final String pathToFile) throws FileNotFoundException;
 
     /**
      * Generate descriptor based on the third parameter(which is?).
-     * The generated descriptor is written to disk for reuse(location?)
-     *
-     * @param pathToFile the file used to generate descriptor.
-     */
-    void generateUnknownDescriptor(final String pathToFile);
-
-    /**
-     * Generate descriptor based on color histogram.
      * The generated descriptor is written to disk for reuse(location?)
      *
      * @param pathToFile the file used to generate descriptor.

@@ -1,12 +1,17 @@
 package com.csci576.mmdb;
 
+import javax.imageio.ImageIO;
+import javax.sound.sampled.AudioFormat;
+import javax.sound.sampled.AudioInputStream;
+import javax.sound.sampled.AudioSystem;
+import javax.sound.sampled.UnsupportedAudioFileException;
+import javax.swing.*;
+import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
-
-import javax.sound.sampled.*;    
 
 /**
  * An implementation of the data store.
@@ -31,9 +36,9 @@ public class DataStoreImpl implements DataStore {
         // read the file
         File wavFile = new File( pathToFile );
 
-        try 
+        try
         {
-            AudioInputStream audioInputStream = AudioSystem.getAudioInputStream( wavFile );
+            AudioInputStream audioInputStream = AudioSystem.getAudioInputStream(wavFile);
             AudioFormat audioFormat = audioInputStream.getFormat();
 
             // get audio information
@@ -115,6 +120,7 @@ public class DataStoreImpl implements DataStore {
         int [] descriptor_y = new int[149];
 
         int[] massiveDescriptor = new int[149];
+        int range = 0;
 
         for (int j = 1; j < 150; ++j) {
             descriptor_x[j-1] = 0; // holds the total horizontal motion
@@ -132,10 +138,36 @@ public class DataStoreImpl implements DataStore {
             }
 
             massiveDescriptor[j - 1] = descriptor_x[j - 1] + descriptor_y[j - 1];
+
+            if (massiveDescriptor[j - 1] > range) {
+                range = massiveDescriptor[j - 1];
+            }
         }
 
-        for (int desc : massiveDescriptor) {
-            System.out.println(desc);
+        double qInterval = range / 255.00;
+        BufferedImage image = new BufferedImage(150, 50, BufferedImage.TYPE_INT_RGB);
+
+        for (int i = 0; i < 50; ++i) {
+            for (int j = 0; j < 150; ++j) {
+                if (j == 0) {
+                    image.setRGB(j, i, 0xff000000);
+                } else {
+                    int qVal = (int) Math.round(massiveDescriptor[j-1] /
+                            qInterval);
+                    int pixel = 0xff000000 | ((qVal & 0xff) << 16) | ((qVal &
+                            0xff) << 8) | ((qVal & 0xff));
+
+                    image.setRGB(j, i, pixel);
+                }
+            }
+        }
+
+        File outFile = new File(pathToFile + "_motion" + ".jpeg");
+
+        try {
+            ImageIO.write(image, "jpeg", outFile);
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 
@@ -182,7 +214,6 @@ public class DataStoreImpl implements DataStore {
                 }
             }
         }
-
         return retVector;
     }
 
@@ -194,26 +225,26 @@ public class DataStoreImpl implements DataStore {
                     15) * 12 + 11));
         }
     }
-//
-//    private void displayFrame(final int[][] frame) {
-//        BufferedImage image = new BufferedImage(240, 180, BufferedImage.TYPE_INT_RGB);
-//        for (int i = 0; i < 180 && i < frame.length; ++i) {
-//            for (int j = 0; j < 240 && j < frame[i].length; ++j) {
-//                image.setRGB(j, i, frame[i][j]);
-//            }
-//        }
-//
-//        JPanel panel = new JPanel();
-//        panel.add(new JLabel(new ImageIcon(image)));
-//
-//        JFrame jFrame = new JFrame("Displaying frame 1 and 120");
-//        jFrame.getContentPane().add(panel);
-//
-//        jFrame.pack();
-//        jFrame.setVisible(true);
-//        jFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-//
-//    }
+
+    private void displayFrame(final int[][] frame) {
+        BufferedImage image = new BufferedImage(240, 180, BufferedImage.TYPE_INT_RGB);
+        for (int i = 0; i < 180 && i < frame.length; ++i) {
+            for (int j = 0; j < 240 && j < frame[i].length; ++j) {
+                image.setRGB(j, i, frame[i][j]);
+            }
+        }
+
+        JPanel panel = new JPanel();
+        panel.add(new JLabel(new ImageIcon(image)));
+
+        JFrame jFrame = new JFrame("Displaying frame 1 and 120");
+        jFrame.getContentPane().add(panel);
+
+        jFrame.pack();
+        jFrame.setVisible(true);
+        jFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+
+    }
 
     private int[][] getFrame(final int frameNumber, final byte[] bytes) {
         int index = 3 * 180 * 240 * frameNumber;
@@ -236,18 +267,13 @@ public class DataStoreImpl implements DataStore {
     }
 
     @Override
-    public void generateUnknownDescriptor(final String pathToFile) {
-        throw new UnsupportedOperationException("Method not yet implemented");
-    }
-
-    @Override
     public void generateColorHistogramDescriptor(final String pathToFile) {
-            
+
         int frameWidth = 240;
         int frameHeight = 180;
         int numFrames = 150;
 
-        try 
+        try
         {
             File rgbFile = new File( pathToFile );
             InputStream is = new FileInputStream( rgbFile );
@@ -274,7 +300,7 @@ public class DataStoreImpl implements DataStore {
                 int totalNumPixels = 0;
                 // accumulate color histogram for 5 frames
                 for ( int f = 0; f < 5; ++f )
-                {   
+                {
                     for ( int y = 0; y < frameHeight; ++y )
                     {
                         for ( int x = 0; x < frameWidth; ++x )
@@ -307,11 +333,11 @@ public class DataStoreImpl implements DataStore {
                 for ( int c = 0; c < 9; ++c )
                     colorHistogramDescriptor[s*9+c] /= totalNumPixels;
             }
-        } 
-        catch (Exception e) 
+        }
+        catch (Exception e)
         {
             e.printStackTrace();
-        } 
+        }
     }
 
     static float byte2float( byte b )
@@ -325,7 +351,7 @@ public class DataStoreImpl implements DataStore {
         float M = Math.max(r, Math.max(g, b));
         float m = Math.min(r, Math.min(g, b));
         v = M;
-        if( M == 0 ) 
+        if( M == 0 )
             s = 0;
         else
             s = (M-m)/M;
