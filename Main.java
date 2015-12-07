@@ -1,12 +1,10 @@
 package com.csci576.mmdb;
 
-import javax.sound.sampled.UnsupportedAudioFileException;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.InputStream;
@@ -14,7 +12,6 @@ import java.io.InputStream;
 import java.io.DataOutputStream;
 import java.io.FileOutputStream;
 import java.io.DataInputStream;
-import java.io.FileInputStream;
 import java.util.ArrayList;
 
 public class Main {
@@ -33,12 +30,14 @@ public class Main {
             int[] colorHistogramDescriptor = ds
                     .generateColorHistogramDescriptor(args[0]);
 
-            System.out.println( "Writing motion descriptor to " + args[0] + ".desc1" );
-            writeDesriptorData( motionDescriptor, args[0] + ".desc1" );
-            System.out.println( "Writing audio intensity descriptor to " + args[1] + ".desc2" );
-            writeDesriptorData( audioDescriptor, args[1] + ".desc2" );
-            System.out.println( "Writing color histogram descriptor to " + args[0] + ".desc3" );
-            writeDesriptorData( colorHistogramDescriptor, args[0] + ".desc3" );
+            if (args.length > 2 && args[2].equals("-t")) {
+                System.out.println( "Writing motion descriptor to " + args[0] + ".desc1" );
+                writeDescriptorData(motionDescriptor, args[0] + ".desc1");
+                System.out.println( "Writing audio intensity descriptor to " + args[1] + ".desc2" );
+                writeDescriptorData(audioDescriptor, args[1] + ".desc2");
+                System.out.println( "Writing color histogram descriptor to " + args[0] + ".desc3" );
+                writeDescriptorData(colorHistogramDescriptor, args[0] + ".desc3");
+            }
 
             displayVideoWithDescriptors(args[0], motionDescriptor,
                     colorHistogramDescriptor, audioDescriptor);
@@ -46,7 +45,17 @@ public class Main {
             final String videoNameMotionDescriptorBased =
                     getBestMatchingVideoBasedOnDescriptor(motionDescriptor, "desc1");
 
+            final String videoNameAudioDescriptorBased =
+                    getBestMatchingVideoBasedOnDescriptor(audioDescriptor,
+                            "desc2");
+
+            final String videoNameColorDescriptorBased =
+                    getBestMatchingVideoBasedOnDescriptor
+                            (colorHistogramDescriptor, "desc3");
+
             System.out.println(videoNameMotionDescriptorBased);
+            System.out.println(videoNameAudioDescriptorBased);
+            System.out.println(videoNameColorDescriptorBased);
 
         } catch ( Exception e ) {
             e.printStackTrace();
@@ -55,16 +64,16 @@ public class Main {
 
     private static String getBestMatchingVideoBasedOnDescriptor(final int[] descriptor, final String desc1) {
         File[] files = new File(".").listFiles(new FilenameFilter() {
-           @Override
-           public boolean accept(final File dir, final String name) {
-               return name.endsWith(desc1);
-           }
-       });
+            @Override
+            public boolean accept(final File dir, final String name) {
+                return name.endsWith(desc1);
+            }
+        });
 
         float closestDelta = Integer.MAX_VALUE;
         String closestMatchingFile = "";
         for (File file : files) {
-            float delta = computeDestance(descriptor, loadDescriptorData(file
+            float delta = computeDistance(descriptor, loadDescriptorData(file
                     .getPath()));
             if (delta < closestDelta) {
                 closestDelta = delta;
@@ -125,12 +134,22 @@ public class Main {
                 50, BufferedImage.TYPE_INT_RGB);
         BufferedImage firstFrame = new BufferedImage(240, 180, BufferedImage.TYPE_INT_RGB);
 
+        int range = Integer.MIN_VALUE;
+        for (int i = 0; i < motionDescriptor.length; ++i) {
+            if (motionDescriptor[i] > range) {
+                range = motionDescriptor[i];
+            }
+        }
+
+        double qInterval = range / 255.0;
+
         for (int i = 0; i < 50; ++i) {
             for (int j = 0; j < 2 * motionDescriptor.length; ++j) {
+                int mdj = (int) Math.round(motionDescriptor[j / 2] / qInterval);
                 int motion_pixel = 0xff000000 |
-                        ((motionDescriptor[j / 2] & 0xff) << 16) |
-                        ((motionDescriptor[j / 2] & 0xff) << 8) |
-                        ((motionDescriptor[j / 2] & 0xff));
+                        ((mdj & 0xff) << 16) |
+                        ((mdj & 0xff) << 8) |
+                        ((mdj & 0xff));
                 motionDescriptorImage.setRGB(j, i, motion_pixel);
             }
             for (int j = 0; j < 2 * colorHistogramDescriptor.length; ++j) {
@@ -206,20 +225,14 @@ public class Main {
         jFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
     }
 
-    static void writeDesriptorData( int[] descriptor, String filename )
+    static void writeDescriptorData(int[] descriptor, String filename)
     {
         try
         {
             DataOutputStream os = new DataOutputStream( new FileOutputStream( filename ) );
-            for ( int i = 0; i < descriptor.length; ++i )
-                os.writeInt( descriptor[i] );
+            for (int aDescriptor : descriptor) os.writeInt(aDescriptor);
             os.close();
-        }
-        catch ( FileNotFoundException e )
-        {
-            e.printStackTrace();
-        }
-        catch ( IOException e )
+        } catch ( IOException e )
         {
             e.printStackTrace();
         }
@@ -227,7 +240,7 @@ public class Main {
 
     static int[] loadDescriptorData( String filename )
     {
-        ArrayList<Integer> descriptorList = new ArrayList<Integer>(0);
+        ArrayList<Integer> descriptorList = new ArrayList<>(0);
         try 
         {
             DataInputStream is = new DataInputStream( new FileInputStream( filename ) );
@@ -236,12 +249,7 @@ public class Main {
                 descriptorList.add( is.readInt() );
             }
             is.close();
-        }
-        catch ( FileNotFoundException e )
-        {
-            e.printStackTrace();
-        }
-        catch ( IOException e )
+        } catch ( IOException e )
         {
             e.printStackTrace();
         }
@@ -249,14 +257,14 @@ public class Main {
         // convert array list to array
         int[] descriptors = new int[descriptorList.size()];
         for ( int i = 0; i < descriptors.length; ++i )
-            descriptors[i] = descriptorList.get(i).intValue();
+            descriptors[i] = descriptorList.get(i);
         return descriptors;
     }
 
     // compute L-2 distance between two descriptors
-    static float computeDestance( int[] descriptor1, int[] descriptor2 )
+    static float computeDistance(int[] descriptor1, int[] descriptor2)
     {
-        // assuming the descritors have the same length
+        // assuming the descriptors have the same length
         assert descriptor1.length == descriptor2.length;
 
         float squaredDistance = 0.f;
@@ -266,8 +274,6 @@ public class Main {
             squaredDistance += diff * diff;
         }
 
-        float distance = (float) Math.sqrt( squaredDistance );
-
-        return distance;
+        return (float) Math.sqrt( squaredDistance );
     }
 }

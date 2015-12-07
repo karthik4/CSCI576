@@ -144,7 +144,7 @@ public class DataStoreImpl implements DataStore {
             quantizedMotionDescriptor[i] = (int) Math.round(massiveDescriptor[i - 1] / qInterval);
         }
 
-        return quantizedMotionDescriptor;
+        return massiveDescriptor;
     }
 
     private int[] getMotionVectorForMacroBlock(final int mbIndex, final int[][]
