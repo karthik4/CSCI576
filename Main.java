@@ -54,9 +54,12 @@ public class Main {
     }
 
     private static String getBestMatchingVideoBasedOnDescriptor(final int[] descriptor, final String desc1) {
-        File[] files = new File(".").listFiles((dir, name) -> {
-            return name.endsWith(desc1);
-        });
+        File[] files = new File(".").listFiles(new FilenameFilter() {
+           @Override
+           public boolean accept(final File dir, final String name) {
+               return name.endsWith(desc1);
+           }
+       });
 
         float closestDelta = Integer.MAX_VALUE;
         String closestMatchingFile = "";
