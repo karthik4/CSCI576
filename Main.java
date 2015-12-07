@@ -10,23 +10,39 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 
+import java.io.DataOutputStream;
+import java.io.FileOutputStream;
+import java.io.DataInputStream;
+import java.io.FileInputStream;
+import java.util.ArrayList;
+
 public class Main {
 
     public static void main(String[] args) {
         DataStore ds = new DataStoreImpl();
 
         try {
+            System.out.println( "Generating motion descriptor" );
             int[] motionDescriptor = ds.generateMotionDescriptor
                     (args[0]);
+            System.out.println( "Generating audio intensity descriptor" );
             int[] audioDescriptor = ds.generateAudioDescriptor
                     (args[1]);
+            System.out.println( "Generating color histogram descriptor" );
             int[] colorHistogramDescriptor = ds
                     .generateColorHistogramDescriptor(args[0]);
+
+            System.out.println( "Writing motion descriptor to " + args[0] + ".desc1" );
+            writeDesriptorData( motionDescriptor, args[0] + ".desc1" );
+            System.out.println( "Writing audio intensity descriptor to " + args[1] + ".desc2" );
+            writeDesriptorData( audioDescriptor, args[1] + ".desc2" );
+            System.out.println( "Writing color histogram descriptor to " + args[0] + ".desc3" );
+            writeDesriptorData( colorHistogramDescriptor, args[0] + ".desc3" );
 
             displayVideoWithDescriptors(args[0], motionDescriptor,
                     colorHistogramDescriptor, audioDescriptor);
 
-        } catch (UnsupportedAudioFileException | IOException e) {
+        } catch ( Exception e ) {
             e.printStackTrace();
         }
     }
@@ -70,33 +86,34 @@ public class Main {
             e.printStackTrace();
         }
 
-        BufferedImage motionDescriptorImage = new BufferedImage(300, 50,
+        BufferedImage motionDescriptorImage = new BufferedImage(motionDescriptor.length, 50,
                 BufferedImage.TYPE_INT_RGB);
-        BufferedImage colorHistogramDescriptorImage = new BufferedImage(300,
+        BufferedImage colorHistogramDescriptorImage = new BufferedImage(colorHistogramDescriptor.length,
                 50, BufferedImage.TYPE_INT_RGB);
-        BufferedImage audioDescriptorImage = new BufferedImage(300,
+        BufferedImage audioDescriptorImage = new BufferedImage(audioDescriptor.length,
                 50, BufferedImage.TYPE_INT_RGB);
         BufferedImage firstFrame = new BufferedImage(240, 180, BufferedImage.TYPE_INT_RGB);
 
         for (int i = 0; i < 50; ++i) {
-            for (int j = 0; j < 300; ++j) {
+            for (int j = 0; j < motionDescriptor.length; ++j) {
                 int motion_pixel = 0xff000000 |
                         ((motionDescriptor[j / 2] & 0xff) << 16) |
                         ((motionDescriptor[j / 2] & 0xff) << 8) |
                         ((motionDescriptor[j / 2] & 0xff));
-
+                motionDescriptorImage.setRGB(j, i, motion_pixel);
+            }
+            for (int j = 0; j < colorHistogramDescriptor.length; ++j) {
                 int color_pixel = 0xff000000 |
                         ((colorHistogramDescriptor[j / 2] & 0xff) << 16) |
                         ((colorHistogramDescriptor[j / 2] & 0xff) << 8) |
                         ((colorHistogramDescriptor[j / 2] & 0xff));
-
+                colorHistogramDescriptorImage.setRGB(j, i, color_pixel);
+            }
+            for (int j = 0; j < audioDescriptor.length; ++j) {
                 int audio_pixel = 0xff000000 |
                         ((audioDescriptor[j / 2] & 0xff) << 16) |
                         ((audioDescriptor[j / 2] & 0xff) << 8) |
                         ((audioDescriptor[j / 2] & 0xff));
-
-                motionDescriptorImage.setRGB(j, i, motion_pixel);
-                colorHistogramDescriptorImage.setRGB(j, i, color_pixel);
                 audioDescriptorImage.setRGB(j, i, audio_pixel);
             }
         }
@@ -153,5 +170,52 @@ public class Main {
         jFrame.pack();
         jFrame.setVisible(true);
         jFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+    }
+
+    static void writeDesriptorData( int[] descriptor, String filename )
+    {
+        try 
+        {
+            DataOutputStream os = new DataOutputStream( new FileOutputStream( filename ) );
+            for ( int i = 0; i < descriptor.length; ++i )
+                os.writeInt( descriptor[i] );
+            os.close();
+        }
+        catch ( FileNotFoundException e )
+        {
+            e.printStackTrace();
+        }
+        catch ( IOException e )
+        {
+            e.printStackTrace();
+        }
+    }
+
+    static int[] loadDescriptorData( String filename )
+    {
+        ArrayList<Integer> descriptorList = new ArrayList<Integer>(0);
+        try 
+        {
+            DataInputStream is = new DataInputStream( new FileInputStream( filename ) );
+            while ( is.available() > 0 )
+            {
+                descriptorList.add( is.readInt() );
+            }
+            is.close();
+        }
+        catch ( FileNotFoundException e )
+        {
+            e.printStackTrace();
+        }
+        catch ( IOException e )
+        {
+            e.printStackTrace();
+        }
+
+        // convert array list to array
+        int[] descriptors = new int[descriptorList.size()];
+        for ( int i = 0; i < descriptors.length; ++i )
+            descriptors[i] = descriptorList.get(i).intValue();
+        return descriptors;
     }
 }
