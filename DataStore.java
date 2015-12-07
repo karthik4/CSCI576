@@ -29,4 +29,12 @@ public interface DataStore {
      * @param pathToFile the file used to generate descriptor.
      */
     void generateUnknownDescriptor(final String pathToFile);
+
+    /**
+     * Generate descriptor based on color histogram.
+     * The generated descriptor is written to disk for reuse(location?)
+     *
+     * @param pathToFile the file used to generate descriptor.
+     */
+    void generateColorHistogramDescriptor(final String pathToFile);
 }

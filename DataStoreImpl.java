@@ -239,4 +239,105 @@ public class DataStoreImpl implements DataStore {
     public void generateUnknownDescriptor(final String pathToFile) {
         throw new UnsupportedOperationException("Method not yet implemented");
     }
+
+    @Override
+    public void generateColorHistogramDescriptor(final String pathToFile) {
+            
+        int frameWidth = 240;
+        int frameHeight = 180;
+        int numFrames = 150;
+
+        try 
+        {
+            File rgbFile = new File( pathToFile );
+            InputStream is = new FileInputStream( rgbFile );
+
+            long rgbFileLength = rgbFile.length();
+            byte[] rgbBytes = new byte[(int)rgbFileLength];
+
+            int offset = 0;
+            int numRead = 0;
+            while (offset < rgbBytes.length && (numRead=is.read(rgbBytes, offset, rgbBytes.length-offset)) >= 0) {
+                offset += numRead;
+            }
+
+            int numHueBins = 9;
+            float[] colorHistogramDescriptor = new float[ 30 * numHueBins ];
+
+            float maxh = -1000;
+            float minh = 1000;
+
+            int ind = 0;
+            // get one descriptor for every 5 frames
+            for ( int s = 0; s < 30; ++s )
+            {
+                int totalNumPixels = 0;
+                // accumulate color histogram for 5 frames
+                for ( int f = 0; f < 5; ++f )
+                {   
+                    for ( int y = 0; y < frameHeight; ++y )
+                    {
+                        for ( int x = 0; x < frameWidth; ++x )
+                        {
+                            float r = byte2float( rgbBytes[ind] );
+                            float g = byte2float( rgbBytes[ind+frameHeight*frameWidth] );
+                            float b = byte2float( rgbBytes[ind+frameHeight*frameWidth*2] );
+
+                            // transform rgb color space to get hue
+                            float h = rgb2h( r, g, b );
+                            if (maxh < h) maxh = h;
+                            if (minh > h) minh = h;
+
+                            // quantize hue to 0 to 8
+                            h = (float) Math.floor( h / 360 * numHueBins );
+                            if (h == numHueBins) b = 8;
+
+                            int colorIndex = (int) h;
+
+                            colorHistogramDescriptor[ s*9 + colorIndex ]++;
+                            totalNumPixels++;
+
+                            ind++;
+                        }
+                    }
+
+                    ind += frameHeight*frameWidth*2;
+                }
+
+                for ( int c = 0; c < 9; ++c )
+                    colorHistogramDescriptor[s*9+c] /= totalNumPixels;
+            }
+        } 
+        catch (Exception e) 
+        {
+            e.printStackTrace();
+        } 
+    }
+
+    static float byte2float( byte b )
+    {
+        return ( ((float)b) % 256) + ( ((float) b) < 0 ? 256 : 0 );
+    }
+
+    static float rgb2h( float r, float g, float b )
+    {
+        float h, s, v;
+        float M = Math.max(r, Math.max(g, b));
+        float m = Math.min(r, Math.min(g, b));
+        v = M;
+        if( M == 0 ) 
+            s = 0;
+        else
+            s = (M-m)/M;
+        if( M == m ) h = 0; /* It is achromatic color */
+        else if( M == r && g >= b )
+            h = (float) (60*(g-b)/(M-m));
+        else if( M == r && g < b )
+            h = (float) (360 + 60*(g-b)/(M-m));
+        else if( g == M )
+            h = (float) (60*(2.0 + (b-r)/(M-m)));
+        else
+            h = (float) (60*(4.0 + (r-g)/(M-m)));
+        return h;
+    }
 }
